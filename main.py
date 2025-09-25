@@ -1,5 +1,4 @@
 import sys
-from asyncio import Event
 import pandas as pd
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -13,7 +12,6 @@ from matplotlib.lines import Line2D
 from pandasDataModel import PandasModel
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure#
-from typing import cast
 
 
 class MainWindow(QMainWindow):
@@ -111,12 +109,7 @@ class MainWindow(QMainWindow):
         if not self.df.empty:
             if self.x_column and self.y_column:
                 try:
-                    self.line, = self.ax.plot(self.df[self.x_column],
-                                              self.df[self.y_column],
-                                              marker='o',
-                                              linestyle='-',
-                                              color='skyblue',
-                                              picker=20)
+                    self.line, = self.ax.plot(self.df[self.x_column], self.df[self.y_column], marker='o', linestyle='-', color='skyblue')
                     self.ax.set_title(f"Plot {self.y_column} vs {self.x_column}")
                     self.ax.grid(True)
 
@@ -144,35 +137,31 @@ class MainWindow(QMainWindow):
         self.annot.set_text(text)
         self.annot.get_bbox_patch().set_alpha(0.4)
 
-    def hover(self, mouse_event: Event):
-        if self.df.empty or not self.line:
+    def hover(self, event: MouseEvent):
+        if self.df.empty or not event.inaxes:
             return
-        event = cast(MouseEvent, mouse_event)
 
-        x_data, y_data = self.line.get_data()
-        x_mouse = event.xdata
-        y_mouse = event.ydata
-
-        distances = [(i, (x - x_mouse) ** 2 + (y - y_mouse) ** 2) for i, (x, y) in enumerate(zip(x_data, y_data))]
-        closest_index, _ = min(distances, key=lambda t: t[1])
+        # Check for None coordinates
+        if event.xdata is None or event.ydata is None:
+            return
 
         vis = self.annot.get_visible()
-        if event.inaxes == self.ax:
-            cont, ind = self.line.contains(event)
-            if cont:
-                self.annot.xy = (x_data[closest_index], y_data[closest_index])
-                x_val = self.df[self.x_column].iloc[closest_index]
-                y_val = self.df[self.y_column].iloc[closest_index]
-                text = f"{self.x_column}: {x_val}\n{self.y_column}: {y_val}"
-                self.annot.set_text(text)
-                self.annot.set_visible(True)
-                self.annot.get_bbox_patch().set_alpha(0.4)
-                self.canvas.draw_idle()
+        x_mouse, y_mouse = event.xdata, event.ydata
+        x_data, y_data = self.line.get_data()
 
+        # Find the closest point
+        distances = [(i, (x - x_mouse) ** 2 + (y - y_mouse) ** 2) for i, (x, y) in enumerate(zip(x_data, y_data))]
+        min_dist_ind, min_dist_sq = min(distances, key=lambda item: item[1])
+
+        # A threshold can be added here to only show annotation if the mouse is close enough
+        if min_dist_sq < 100:  # The threshold is in data coordinates, adjust as needed
+            self.update_annot({"ind": [min_dist_ind]})
+            self.annot.set_visible(True)
+            self.canvas.draw_idle()
         else:
-                if vis:
-                    self.annot.set_visible(False)
-                    self.canvas.draw_idle()
+            if vis:
+                self.annot.set_visible(False)
+                self.canvas.draw_idle()
 
 
 def main():

@@ -1,5 +1,6 @@
 import sys
 import pandas as pd
+import numpy as np
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLineEdit, QCheckBox, QTableView, QFileDialog, QLabel,
@@ -138,23 +139,35 @@ class MainWindow(QMainWindow):
         self.annot.get_bbox_patch().set_alpha(0.4)
 
     def hover(self, event: MouseEvent):
-        if self.df.empty or not event.inaxes:
-            return
-
-        # Check for None coordinates
-        if event.xdata is None or event.ydata is None:
-            return
-
         vis = self.annot.get_visible()
-        x_mouse, y_mouse = event.xdata, event.ydata
+
+        # If mouse is not in our axes, hide annotation and return
+        if not event.inaxes:
+            if vis:
+                self.annot.set_visible(False)
+                self.canvas.draw_idle()
+            return
+
+        # Get data points from the line object
         x_data, y_data = self.line.get_data()
 
-        # Find the closest point
-        distances = [(i, (x - x_mouse) ** 2 + (y - y_mouse) ** 2) for i, (x, y) in enumerate(zip(x_data, y_data))]
-        min_dist_ind, min_dist_sq = min(distances, key=lambda item: item[1])
+        # If there's no data, do nothing
+        if len(x_data) == 0:
+            return
 
-        # A threshold can be added here to only show annotation if the mouse is close enough
-        if min_dist_sq < 100:  # The threshold is in data coordinates, adjust as needed
+        # Transform data coords to display coords
+        xy_pixels = self.ax.transData.transform(np.c_[x_data, y_data])
+
+        # Calculate squared distance from mouse to all points in pixel space
+        distances_sq = np.sum((xy_pixels - (event.x, event.y))**2, axis=1)
+
+        # Find the closest point
+        min_dist_ind = np.argmin(distances_sq)
+
+        # Threshold in pixels squared (e.g. 10px radius)
+        pixel_threshold_sq = 10**2
+
+        if distances_sq[min_dist_ind] < pixel_threshold_sq:
             self.update_annot({"ind": [min_dist_ind]})
             self.annot.set_visible(True)
             self.canvas.draw_idle()

@@ -1,5 +1,4 @@
 import sys
-from asyncio import Event
 import pandas as pd
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -13,7 +12,6 @@ from matplotlib.lines import Line2D
 from pandasDataModel import PandasModel
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure#
-from typing import cast
 
 
 class MainWindow(QMainWindow):
@@ -139,10 +137,9 @@ class MainWindow(QMainWindow):
         self.annot.set_text(text)
         self.annot.get_bbox_patch().set_alpha(0.4)
 
-    def hover(self, mouse_event: Event):
+    def hover(self, event: MouseEvent):
         if self.df.empty:
             return
-        event = cast(MouseEvent, mouse_event)
         vis = self.annot.get_visible()
         if event.inaxes == self.ax:
             cont, ind = self.line.contains(event)

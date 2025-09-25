@@ -102,6 +102,10 @@ class MainWindow(QMainWindow):
     def plot_data(self):
         """Draw a simple matplotlib plot in the bottom area."""
         self.ax.clear()
+        self.annot = self.ax.annotate("", xy=(0, 0), xytext=(-20, 20), textcoords="offset points",
+                                 bbox=dict(boxstyle="round", fc="w"),
+                                 arrowprops=dict(arrowstyle="->"))
+        self.annot.set_visible(False)
 
 
         if not self.df.empty:
@@ -136,6 +140,8 @@ class MainWindow(QMainWindow):
         self.annot.get_bbox_patch().set_alpha(0.4)
 
     def hover(self, mouse_event: Event):
+        if self.df.empty:
+            return
         event = cast(MouseEvent, mouse_event)
         vis = self.annot.get_visible()
         if event.inaxes == self.ax:

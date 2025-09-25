@@ -4,12 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fb890397-061d-40d5-80b8-7f431ebd7c09" name="Changes" comment="Basic GUI setup">
-      <change beforePath="$PROJECT_DIR$/.idea/TradeHistoryPythonGUI.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/TradeHistoryPythonGUI.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
+    <list default="true" id="fb890397-061d-40d5-80b8-7f431ebd7c09" name="Changes" comment="Update 25.09.2025">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -100,13 +96,33 @@
       <option name="project" value="LOCAL" />
       <updated>1757963357846</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="Update 25.09.2025">
+      <option name="closed" value="true" />
+      <created>1758833319605</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1758833319605</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Initial Commit" />
     <MESSAGE value="Example Calendar implementation" />
     <MESSAGE value="Basic GUI setup" />
-    <option name="LAST_COMMIT_MESSAGE" value="Basic GUI setup" />
+    <MESSAGE value="Update 25.09.2025" />
+    <option name="LAST_COMMIT_MESSAGE" value="Update 25.09.2025" />
   </component>
 </project>

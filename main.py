@@ -101,13 +101,13 @@ class MainWindow(QMainWindow):
 
     def plot_data(self):
         """Draw a simple matplotlib plot in the bottom area."""
-        self.canvas.figure.clf()
+        self.ax.clear()
 
 
         if not self.df.empty:
             if self.x_column and self.y_column:
                 try:
-                    self.ax.plot(self.df[self.x_column], self.df[self.y_column], marker='o', linestyle='-', color='skyblue')
+                    self.line, = self.ax.plot(self.df[self.x_column], self.df[self.y_column], marker='o', linestyle='-', color='skyblue')
                     self.ax.set_title(f"Plot {self.y_column} vs {self.x_column}")
                     self.ax.grid(True)
 
@@ -128,8 +128,10 @@ class MainWindow(QMainWindow):
     def update_annot(self, ind):
         x, y = self.line.get_data()
         self.annot.xy = (x[ind["ind"][0]], y[ind["ind"][0]])
-        text = "{}, {}".format(self.df[self.x_column],
-                               self.df[self.x_column])
+        # Get the specific data point's coordinates
+        x_val = self.df[self.x_column].iloc[ind["ind"][0]]
+        y_val = self.df[self.y_column].iloc[ind["ind"][0]]
+        text = f"{self.x_column}: {x_val}\n{self.y_column}: {y_val}"
         self.annot.set_text(text)
         self.annot.get_bbox_patch().set_alpha(0.4)
 

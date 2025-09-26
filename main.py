@@ -93,9 +93,7 @@ class MainWindow(QMainWindow):
                 if self.x_column in self.df.columns:
                     self.df[self.x_column] = pd.to_datetime(self.df[self.x_column], errors='coerce')
 
-                self.plotted_df = self.df
                 self.model.set_data_frame(self.df)
-                self.update_filter()
 
                 # Check if 'Comment' column exists and enable/disable filter controls
                 if 'Comment' in self.df.columns:

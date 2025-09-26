@@ -67,8 +67,8 @@ class MainWindow(QMainWindow):
         self.df = pd.DataFrame()
         self.plotted_df = pd.DataFrame()
         self.model = PandasModel()
-        self.x_column = "Date"
-        self.y_column = "Balance"
+        self.x_column = "Position ID"
+        self.y_column = "profit"
         self.proxy_model = QSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
         self.proxy_model.setFilterCaseSensitivity(Qt.CaseInsensitive)
@@ -90,8 +90,16 @@ class MainWindow(QMainWindow):
         if file_name:
             try:
                 self.df = pd.read_csv(file_name, encoding="utf-16")
-                if self.x_column in self.df.columns:
-                    self.df[self.x_column] = pd.to_datetime(self.df[self.x_column], errors='coerce')
+
+                # Validate and clean data
+                if self.x_column not in self.df.columns or self.y_column not in self.df.columns:
+                    print(f"Error: CSV must contain '{self.x_column}' and '{self.y_column}' columns.")
+                    self.df = pd.DataFrame()  # Clear dataframe
+                    self.model.set_data_frame(self.df)
+                    return
+
+                self.df[self.y_column] = pd.to_numeric(self.df[self.y_column], errors='coerce')
+                self.df.dropna(subset=[self.y_column], inplace=True)
 
                 self.model.set_data_frame(self.df)
 
@@ -130,23 +138,28 @@ class MainWindow(QMainWindow):
 
 
         if not self.plotted_df.empty:
-            if self.x_column and self.y_column:
+            if self.x_column in self.plotted_df.columns and self.y_column in self.plotted_df.columns:
                 try:
-                    self.line, = self.ax.plot(self.plotted_df[self.x_column], self.plotted_df[self.y_column], marker='o', linestyle='-', color='skyblue')
-                    self.ax.set_title(f"Plot {self.y_column} vs {self.x_column}")
+                    self.line, = self.ax.plot(self.plotted_df[self.x_column], self.plotted_df[self.y_column], marker='o', linestyle='-')
+                    self.ax.set_title(f"Plot of '{self.y_column}' vs '{self.x_column}'")
+                    self.ax.set_xlabel(self.x_column)
+                    self.ax.set_ylabel(self.y_column)
                     self.ax.grid(True)
-
-                    # Offset the x_labels for readability
-                    for text in self.ax.get_xticklabels()[1::2]:
-                        text.set_y(-0.04)
-
-
+                    self.figure.tight_layout()  # Adjust layout to prevent labels overlapping
                 except Exception as e:
-                    self.ax.text(0.5, 0.5, f"Could not plot Graph, Exception:\n{e}",
-                            ha="center", va="center", transform=self.ax.transAxes)
-
+                    error_message = f"Could not plot graph.\n" \
+                                    f"Please check data types in '{self.x_column}' and '{self.y_column}'.\n" \
+                                    f"Details: {e}"
+                    self.ax.text(0.5, 0.5, error_message,
+                            ha="center", va="center", transform=self.ax.transAxes, wrap=True)
+            else:
+                self.ax.text(0.5, 0.5, f"Required columns for plotting not found.",
+                             ha="center", va="center", transform=self.ax.transAxes)
         else:
-            self.ax.text(0.5, 0.5, "No data loaded", ha="center", va="center", transform=self.ax.transAxes)
+            if self.df.empty:
+                self.ax.text(0.5, 0.5, "No data loaded. Please load a CSV file.", ha="center", va="center", transform=self.ax.transAxes)
+            else:
+                self.ax.text(0.5, 0.5, "No data matches the current filter.", ha="center", va="center", transform=self.ax.transAxes)
 
         self.canvas.draw()
 

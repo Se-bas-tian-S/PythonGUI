@@ -65,6 +65,7 @@ class MainWindow(QMainWindow):
 
         # Internal data
         self.df = pd.DataFrame()
+        self.plotted_df = pd.DataFrame()
         self.model = PandasModel()
         self.x_column = "Position ID"
         self.y_column = "Profit"
@@ -85,6 +86,7 @@ class MainWindow(QMainWindow):
         file_name, _ = QFileDialog.getOpenFileName(self, "Open CSV File", "", "CSV files (*.csv)")
         if file_name:
             try:
+                self.plotted_df = self.df
                 self.df = pd.read_csv(file_name, encoding="utf-16")
                 self.model.set_data_frame(self.df)
                 self.plot_data()
@@ -92,11 +94,19 @@ class MainWindow(QMainWindow):
                 print(f"Failed to load CSV: {e}")
 
     def update_filter(self):
+        search_text = self.filter_input.text()
         if self.filter_checkbox.isChecked():
-            search_text = self.filter_input.text()
             self.proxy_model.setFilterFixedString(search_text)
+
+            source_indices = [self.proxy_model.mapToSource(self.proxy_model.index(row, 0)).row()
+                              for row in range(self.proxy_model.rowCount())]
+
+            self.plotted_df = self.df.iloc[source_indices]
         else:
             self.proxy_model.setFilterFixedString("")
+            self.plotted_df = self.df
+
+        self.plot_data()
 
     def plot_data(self):
         """Draw a simple matplotlib plot in the bottom area."""
@@ -107,10 +117,10 @@ class MainWindow(QMainWindow):
         self.annot.set_visible(False)
 
 
-        if not self.df.empty:
+        if not self.plotted_df.empty:
             if self.x_column and self.y_column:
                 try:
-                    self.line, = self.ax.plot(self.df[self.x_column], self.df[self.y_column], marker='o', linestyle='-', color='skyblue')
+                    self.line, = self.ax.plot(self.plotted_df[self.x_column], self.plotted_df[self.y_column], marker='o', linestyle='-', color='skyblue')
                     self.ax.set_title(f"Plot {self.y_column} vs {self.x_column}")
                     self.ax.grid(True)
 

@@ -32,9 +32,7 @@ class MainWindow(QMainWindow):
         self.load_button = QPushButton("Load CSV")
         self.filter_input = QLineEdit()
         self.filter_input.setPlaceholderText("Type to filter...")
-        self.filter_input.setEnabled(False)
         self.filter_checkbox = QCheckBox("Enable Filter")
-        self.filter_checkbox.setEnabled(False)
 
         toolbar_layout.addWidget(self.load_button)
         toolbar_layout.addWidget(QLabel("Filter:"))
@@ -88,7 +86,7 @@ class MainWindow(QMainWindow):
         file_name, _ = QFileDialog.getOpenFileName(self, "Open CSV File", "", "CSV files (*.csv)")
         if file_name:
             try:
-                self.df = pd.read_csv(file_name)
+                self.df = pd.read_csv(file_name, encoding="utf-16")
                 self.plotted_df = self.df
                 self.model.set_data_frame(self.df)
                 self.update_filter()

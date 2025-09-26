@@ -80,13 +80,19 @@ class MainWindow(QMainWindow):
         self.filter_input.textChanged.connect(self.update_filter)
         self.filter_checkbox.stateChanged.connect(self.update_filter)
         self.load_button.clicked.connect(self.load_csv)
+        self.proxy_model.layoutChanged.connect(self.plot_data)
         self.canvas.mpl_connect("motion_notify_event", self.hover)
+
+        self.plot_data()
 
     def load_csv(self):
         file_name, _ = QFileDialog.getOpenFileName(self, "Open CSV File", "", "CSV files (*.csv)")
         if file_name:
             try:
                 self.df = pd.read_csv(file_name, encoding="utf-16")
+                if self.x_column in self.df.columns:
+                    self.df[self.x_column] = pd.to_datetime(self.df[self.x_column], errors='coerce')
+
                 self.plotted_df = self.df
                 self.model.set_data_frame(self.df)
                 self.update_filter()
@@ -109,19 +115,15 @@ class MainWindow(QMainWindow):
         search_text = self.filter_input.text()
         if self.filter_checkbox.isChecked():
             self.proxy_model.setFilterFixedString(search_text)
-
-            source_indices = [self.proxy_model.mapToSource(self.proxy_model.index(row, 0)).row()
-                              for row in range(self.proxy_model.rowCount())]
-
-            self.plotted_df = self.df.iloc[source_indices]
         else:
             self.proxy_model.setFilterFixedString("")
-            self.plotted_df = self.df
-
-        self.plot_data()
 
     def plot_data(self):
         """Draw a simple matplotlib plot in the bottom area."""
+        source_indices = [self.proxy_model.mapToSource(self.proxy_model.index(row, 0)).row()
+                          for row in range(self.proxy_model.rowCount())]
+        self.plotted_df = self.df.iloc[source_indices]
+
         self.ax.clear()
         self.annot = self.ax.annotate("", xy=(0, 0), xytext=(-20, 20), textcoords="offset points",
                                  bbox=dict(boxstyle="round", fc="w"),

@@ -11,13 +11,14 @@ class PandasModel(QStandardItemModel):
         self.set_data_frame(df)
 
     def set_data_frame(self, df):
+        self.beginResetModel()
         self.clear()
-        if df.empty:
-            return
-        # Set headers
-        self.setColumnCount(len(df.columns))
-        self.setHorizontalHeaderLabels(df.columns.tolist())
-        # Fill data
-        for row in df.itertuples(index=False):
-            items = [QStandardItem(str(field)) for field in row]
-            self.appendRow(items)
+        if not df.empty:
+            # Set headers
+            self.setColumnCount(len(df.columns))
+            self.setHorizontalHeaderLabels(df.columns.tolist())
+            # Fill data
+            for row in df.itertuples(index=False):
+                items = [QStandardItem(str(field)) for field in row]
+                self.appendRow(items)
+        self.endResetModel()

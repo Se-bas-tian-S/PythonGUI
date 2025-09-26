@@ -32,7 +32,9 @@ class MainWindow(QMainWindow):
         self.load_button = QPushButton("Load CSV")
         self.filter_input = QLineEdit()
         self.filter_input.setPlaceholderText("Type to filter...")
+        self.filter_input.setEnabled(False)
         self.filter_checkbox = QCheckBox("Enable Filter")
+        self.filter_checkbox.setEnabled(False)
 
         toolbar_layout.addWidget(self.load_button)
         toolbar_layout.addWidget(QLabel("Filter:"))
@@ -67,8 +69,8 @@ class MainWindow(QMainWindow):
         self.df = pd.DataFrame()
         self.plotted_df = pd.DataFrame()
         self.model = PandasModel()
-        self.x_column = "Position ID"
-        self.y_column = "Profit"
+        self.x_column = "Date"
+        self.y_column = "Balance"
         self.proxy_model = QSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
         self.proxy_model.setFilterCaseSensitivity(Qt.CaseInsensitive)
@@ -86,10 +88,22 @@ class MainWindow(QMainWindow):
         file_name, _ = QFileDialog.getOpenFileName(self, "Open CSV File", "", "CSV files (*.csv)")
         if file_name:
             try:
+                self.df = pd.read_csv(file_name)
                 self.plotted_df = self.df
-                self.df = pd.read_csv(file_name, encoding="utf-16")
                 self.model.set_data_frame(self.df)
-                self.plot_data()
+                self.update_filter()
+
+                # Check if 'Comment' column exists and enable/disable filter controls
+                if 'Comment' in self.df.columns:
+                    comment_col_index = self.df.columns.get_loc('Comment')
+                    self.proxy_model.setFilterKeyColumn(comment_col_index)
+                    self.filter_input.setEnabled(True)
+                    self.filter_checkbox.setEnabled(True)
+                else:
+                    self.proxy_model.setFilterKeyColumn(-1) # Reset to all columns
+                    self.filter_input.setEnabled(False)
+                    self.filter_checkbox.setEnabled(False)
+
             except Exception as e:
                 print(f"Failed to load CSV: {e}")
 
@@ -112,8 +126,8 @@ class MainWindow(QMainWindow):
         """Draw a simple matplotlib plot in the bottom area."""
         self.ax.clear()
         self.annot = self.ax.annotate("", xy=(0, 0), xytext=(-20, 20), textcoords="offset points",
-                                      bbox=dict(boxstyle="round", fc="w"),
-                                      arrowprops=dict(arrowstyle="->"))
+                                 bbox=dict(boxstyle="round", fc="w"),
+                                 arrowprops=dict(arrowstyle="->"))
         self.annot.set_visible(False)
 
 
@@ -141,9 +155,9 @@ class MainWindow(QMainWindow):
     def update_annot(self, ind):
         x, y = self.line.get_data()
         self.annot.xy = (x[ind["ind"][0]], y[ind["ind"][0]])
-        # Get the specific data point's coordinates
-        x_val = self.df[self.x_column].iloc[ind["ind"][0]]
-        y_val = self.df[self.y_column].iloc[ind["ind"][0]]
+        # Get the specific data point's coordinates from the plotted dataframe
+        x_val = self.plotted_df[self.x_column].iloc[ind["ind"][0]]
+        y_val = self.plotted_df[self.y_column].iloc[ind["ind"][0]]
         text = f"{self.x_column}: {x_val}\n{self.y_column}: {y_val}"
         self.annot.set_text(text)
         self.annot.get_bbox_patch().set_alpha(0.4)

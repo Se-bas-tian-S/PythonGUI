@@ -67,8 +67,8 @@ class MainWindow(QMainWindow):
         self.df = pd.DataFrame()
         self.plotted_df = pd.DataFrame()
         self.model = PandasModel()
-        self.x_column = "Date"
-        self.y_column = "Balance"
+        self.x_column = "Position ID"
+        self.y_column = "Profit"
         self.proxy_model = QSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
         self.proxy_model.setFilterCaseSensitivity(Qt.CaseInsensitive)
@@ -86,8 +86,8 @@ class MainWindow(QMainWindow):
         file_name, _ = QFileDialog.getOpenFileName(self, "Open CSV File", "", "CSV files (*.csv)")
         if file_name:
             try:
-                self.df = pd.read_csv(file_name)
                 self.plotted_df = self.df
+                self.df = pd.read_csv(file_name, encoding="utf-16")
                 self.model.set_data_frame(self.df)
                 self.plot_data()
             except Exception as e:
@@ -112,8 +112,8 @@ class MainWindow(QMainWindow):
         """Draw a simple matplotlib plot in the bottom area."""
         self.ax.clear()
         self.annot = self.ax.annotate("", xy=(0, 0), xytext=(-20, 20), textcoords="offset points",
-                                 bbox=dict(boxstyle="round", fc="w"),
-                                 arrowprops=dict(arrowstyle="->"))
+                                      bbox=dict(boxstyle="round", fc="w"),
+                                      arrowprops=dict(arrowstyle="->"))
         self.annot.set_visible(False)
 
 

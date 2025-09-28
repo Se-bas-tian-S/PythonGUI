@@ -7,12 +7,13 @@ from PyQt5.QtWidgets import (
     QSplitter, QSizePolicy
 )
 from PyQt5.QtCore import Qt, QSortFilterProxyModel
-from matplotlib.backend_bases import MouseEvent
+from matplotlib.backend_bases import MouseEvent, Event
 from matplotlib.lines import Line2D
 
 from pandasDataModel import PandasModel
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure#
+from matplotlib.figure import Figure
+from typing import cast
 
 
 class MainWindow(QMainWindow):
@@ -70,8 +71,8 @@ class MainWindow(QMainWindow):
         self.canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.ax = self.canvas.figure.add_subplot(111)
         self.annot = self.ax.annotate("", xy=(0, 0), xytext=(-20, 20), textcoords="offset points",
-                                 bbox=dict(boxstyle="round", fc="w"),
-                                 arrowprops=dict(arrowstyle="->"))
+                                      bbox=dict(boxstyle="round", fc="w"),
+                                      arrowprops=dict(arrowstyle="->"))
         self.annot.set_visible(False)
         self.line = Line2D([0], [0])
         splitter.addWidget(self.canvas)
@@ -134,11 +135,14 @@ class MainWindow(QMainWindow):
                                       arrowprops=dict(arrowstyle="->"))
         self.annot.set_visible(False)
 
-
         if not self.plotted_df.empty:
             if self.x_column and self.y_column:
                 try:
-                    self.line, = self.ax.plot(self.plotted_df[self.x_column], self.plotted_df[self.y_column], marker='o', linestyle='-', color='skyblue')
+                    self.line, = self.ax.plot(self.plotted_df[self.x_column],
+                                              self.plotted_df[self.y_column],
+                                              marker='o',
+                                              linestyle='-',
+                                              color='skyblue')
                     self.ax.set_title(f"Plot {self.y_column} vs {self.x_column}")
                     self.ax.grid(True)
 
@@ -146,10 +150,9 @@ class MainWindow(QMainWindow):
                     for text in self.ax.get_xticklabels()[1::2]:
                         text.set_y(-0.04)
 
-
                 except Exception as e:
                     self.ax.text(0.5, 0.5, f"Could not plot Graph, Exception:\n{e}",
-                            ha="center", va="center", transform=self.ax.transAxes)
+                                 ha="center", va="center", transform=self.ax.transAxes)
 
         else:
             self.ax.text(0.5, 0.5, "No data loaded", ha="center", va="center", transform=self.ax.transAxes)
@@ -166,8 +169,9 @@ class MainWindow(QMainWindow):
         self.annot.set_text(text)
         self.annot.get_bbox_patch().set_alpha(0.4)
 
-    def hover(self, event: MouseEvent):
+    def hover(self, mouse_event: Event):
         vis = self.annot.get_visible()
+        event = cast(MouseEvent, mouse_event)
 
         # If mouse is not in our axes, hide annotation and return
         if not event.inaxes:

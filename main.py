@@ -22,24 +22,39 @@ class MainWindow(QMainWindow):
         self.resize(1000, 600)
         self.showMaximized()
 
-        # Central Widget
+        # Central Widget and Main Layout
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        layout = QVBoxLayout(central_widget)
+        main_layout = QHBoxLayout(central_widget)
 
-        # Toolbar: Load Button, Filter Input, Checkbox
-        toolbar_layout = QHBoxLayout()
-        self.load_button = QPushButton("Load CSV")
+        # Sidebar
+        self.sidebar = QWidget()
+        self.sidebar.setFixedWidth(250)
+        sidebar_layout = QVBoxLayout(self.sidebar)
+
         self.filter_input = QLineEdit()
         self.filter_input.setPlaceholderText("Type to filter...")
         self.filter_checkbox = QCheckBox("Enable Filter")
 
-        toolbar_layout.addWidget(self.load_button)
-        toolbar_layout.addWidget(QLabel("Filter:"))
-        toolbar_layout.addWidget(self.filter_input)
-        toolbar_layout.addWidget(self.filter_checkbox)
-        toolbar_layout.addStretch()
-        layout.addLayout(toolbar_layout)
+        sidebar_layout.addWidget(QLabel("Filter:"))
+        sidebar_layout.addWidget(self.filter_input)
+        sidebar_layout.addWidget(self.filter_checkbox)
+        sidebar_layout.addStretch()
+        main_layout.addWidget(self.sidebar)
+
+        # Main Content Area
+        main_content_widget = QWidget()
+        main_content_layout = QVBoxLayout(main_content_widget)
+        main_layout.addWidget(main_content_widget)
+
+        # Top bar with Toggle Button and Load CSV
+        top_bar_layout = QHBoxLayout()
+        self.toggle_button = QPushButton("Toggle Sidebar")
+        self.load_button = QPushButton("Load CSV")
+        top_bar_layout.addWidget(self.toggle_button)
+        top_bar_layout.addWidget(self.load_button)
+        top_bar_layout.addStretch()
+        main_content_layout.addLayout(top_bar_layout)
 
         # Splitter: Table (top) and Visualization Area (bottom)
         splitter = QSplitter(Qt.Vertical)
@@ -61,7 +76,7 @@ class MainWindow(QMainWindow):
         self.line = Line2D([0], [0])
         splitter.addWidget(self.canvas)
 
-        layout.addWidget(splitter)
+        main_content_layout.addWidget(splitter)
 
         # Internal data
         self.df = pd.DataFrame()
@@ -80,7 +95,11 @@ class MainWindow(QMainWindow):
         self.filter_input.textChanged.connect(self.update_filter)
         self.filter_checkbox.stateChanged.connect(self.update_filter)
         self.load_button.clicked.connect(self.load_csv)
+        self.toggle_button.clicked.connect(self.toggle_sidebar)
         self.canvas.mpl_connect("motion_notify_event", self.hover)
+
+    def toggle_sidebar(self):
+        self.sidebar.setVisible(not self.sidebar.isVisible())
 
     def load_csv(self):
         file_name, _ = QFileDialog.getOpenFileName(self, "Open CSV File", "", "CSV files (*.csv)")

@@ -4,7 +4,7 @@ import numpy as np
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLineEdit, QCheckBox, QTableView, QFileDialog, QLabel,
-    QSplitter, QSizePolicy
+    QSplitter, QSizePolicy, QComboBox
 )
 from PyQt5.QtCore import Qt, QSortFilterProxyModel
 from matplotlib.backend_bases import MouseEvent, Event
@@ -31,6 +31,10 @@ class MainWindow(QMainWindow):
         # Sidebar
         self.sidebar = QWidget()
         self.sidebar.setFixedWidth(250)
+        self.sidebar.setStyleSheet("""
+            background-color: #403e3e;
+            color: white;
+        """)
         sidebar_layout = QVBoxLayout(self.sidebar)
 
         self.filter_input = QLineEdit()
@@ -40,6 +44,13 @@ class MainWindow(QMainWindow):
         sidebar_layout.addWidget(QLabel("Filter:"))
         sidebar_layout.addWidget(self.filter_input)
         sidebar_layout.addWidget(self.filter_checkbox)
+
+        # Plot mode dropdown
+        self.plot_mode_combo = QComboBox()
+        self.plot_mode_combo.addItems(["Individual", "Cumulative"])
+        sidebar_layout.addWidget(QLabel("Plot Mode:"))
+        sidebar_layout.addWidget(self.plot_mode_combo)
+
         sidebar_layout.addStretch()
         main_layout.addWidget(self.sidebar)
 
@@ -85,6 +96,7 @@ class MainWindow(QMainWindow):
         self.model = PandasModel()
         self.x_column = "Position ID"
         self.y_column = "Profit"
+        self.plot_mode = "Individual"  # Default plot mode
         self.proxy_model = QSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
         self.proxy_model.setFilterCaseSensitivity(Qt.CaseInsensitive)
@@ -97,7 +109,12 @@ class MainWindow(QMainWindow):
         self.filter_checkbox.stateChanged.connect(self.update_filter)
         self.load_button.clicked.connect(self.load_csv)
         self.toggle_button.clicked.connect(self.toggle_sidebar)
+        self.plot_mode_combo.currentIndexChanged.connect(self.update_plot_mode)
         self.canvas.mpl_connect("motion_notify_event", self.hover)
+
+    def update_plot_mode(self):
+        self.plot_mode = self.plot_mode_combo.currentText()
+        self.plot_data()
 
     def toggle_sidebar(self):
         self.sidebar.setVisible(not self.sidebar.isVisible())
@@ -138,12 +155,19 @@ class MainWindow(QMainWindow):
         if not self.plotted_df.empty:
             if self.x_column and self.y_column:
                 try:
+                    y_values = self.plotted_df[self.y_column]
+                    title = f"Plot {self.y_column} vs {self.x_column}"
+
+                    if self.plot_mode == "Cumulative":
+                        y_values = y_values.cumsum()
+                        title = f"Cumulative Plot {self.y_column} vs {self.x_column}"
+
                     self.line, = self.ax.plot(self.plotted_df[self.x_column],
-                                              self.plotted_df[self.y_column],
+                                              y_values,
                                               marker='o',
                                               linestyle='-',
                                               color='skyblue')
-                    self.ax.set_title(f"Plot {self.y_column} vs {self.x_column}")
+                    self.ax.set_title(title)
                     self.ax.grid(True)
 
                     # Offset the x_labels for readability
@@ -160,12 +184,11 @@ class MainWindow(QMainWindow):
         self.canvas.draw()
 
     def update_annot(self, ind):
+        idx = ind["ind"][0]
         x, y = self.line.get_data()
-        self.annot.xy = (x[ind["ind"][0]], y[ind["ind"][0]])
-        # Get the specific data point's coordinates
-        x_val = self.df[self.x_column].iloc[ind["ind"][0]]
-        y_val = self.df[self.y_column].iloc[ind["ind"][0]]
-        text = f"{self.x_column}: {x_val}\n{self.y_column}: {y_val}"
+        self.annot.xy = (x[idx], y[idx])
+
+        text = f"{self.x_column}: {x[idx]}\n{self.y_column}: {y[idx]}"
         self.annot.set_text(text)
         self.annot.get_bbox_patch().set_alpha(0.4)
 

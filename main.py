@@ -4,7 +4,7 @@ import numpy as np
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLineEdit, QCheckBox, QTableView, QFileDialog, QLabel,
-    QSplitter, QSizePolicy
+    QSplitter, QSizePolicy, QComboBox, QHeaderView
 )
 from PyQt5.QtCore import Qt, QSortFilterProxyModel
 from matplotlib.backend_bases import MouseEvent, Event
@@ -14,6 +14,23 @@ from pandasDataModel import PandasModel
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from typing import cast
+
+
+"""
+TODO:
+-   Add functionality to include swap and commission prices into balance calculation, including a checkbox to be able to
+    view the return of the strategy without commission and swap
+-   Fix the sidebar view, currently the Index column is cut off
+-   Change the display of the graph, currently there are gaps in the graph if there are gaps in the positionIDs
+-   Add a checkbox next to each row of the table to be able to exclude single entries (Usecase: errors in the strategy
+    or extreme outliers can be accounted for this way)
+-   Add the ability to filter for trade direction
+-   Add the ability to switch to different graphs with a dropbox, for example plot the volumes, or use the position
+    opening time as x-axis
+-   Future implementations: Add a statisical overview tab to display some key figures and calculations of the strategy,
+    like averages (Position size, return, swap, duration of the position, price difference in %, some important figures like the MT5 Strategy
+    tester has them to be able to compare)
+"""
 
 
 class MainWindow(QMainWindow):
@@ -31,15 +48,32 @@ class MainWindow(QMainWindow):
         # Sidebar
         self.sidebar = QWidget()
         self.sidebar.setFixedWidth(250)
+        self.sidebar.setStyleSheet("""
+            background-color: #403e3e;
+            color: white;
+        """)
         sidebar_layout = QVBoxLayout(self.sidebar)
 
         self.filter_input = QLineEdit()
+        self.filter_input.setStyleSheet("""
+            background-color: white;
+            color: black;""")
         self.filter_input.setPlaceholderText("Type to filter...")
         self.filter_checkbox = QCheckBox("Enable Filter")
 
         sidebar_layout.addWidget(QLabel("Filter:"))
         sidebar_layout.addWidget(self.filter_input)
         sidebar_layout.addWidget(self.filter_checkbox)
+
+        # Plot mode dropdown
+        self.plot_mode_combo = QComboBox()
+        self.plot_mode_combo.addItems(["Individual", "Cumulative"])
+        self.plot_mode_combo.setStyleSheet("""
+            background-color: white;
+            color: black;""")
+        sidebar_layout.addWidget(QLabel("Plot Mode:"))
+        sidebar_layout.addWidget(self.plot_mode_combo)
+
         sidebar_layout.addStretch()
         main_layout.addWidget(self.sidebar)
 
@@ -76,6 +110,7 @@ class MainWindow(QMainWindow):
         self.annot.set_visible(False)
         self.line = Line2D([0], [0])
         splitter.addWidget(self.canvas)
+        splitter.setSizes([1, 40])
 
         main_content_layout.addWidget(splitter)
 
@@ -85,6 +120,7 @@ class MainWindow(QMainWindow):
         self.model = PandasModel()
         self.x_column = "Position ID"
         self.y_column = "Profit"
+        self.plot_mode = "Individual"  # Default plot mode
         self.proxy_model = QSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
         self.proxy_model.setFilterCaseSensitivity(Qt.CaseInsensitive)
@@ -97,7 +133,12 @@ class MainWindow(QMainWindow):
         self.filter_checkbox.stateChanged.connect(self.update_filter)
         self.load_button.clicked.connect(self.load_csv)
         self.toggle_button.clicked.connect(self.toggle_sidebar)
+        self.plot_mode_combo.currentIndexChanged.connect(self.update_plot_mode)
         self.canvas.mpl_connect("motion_notify_event", self.hover)
+
+    def update_plot_mode(self):
+        self.plot_mode = self.plot_mode_combo.currentText()
+        self.plot_data()
 
     def toggle_sidebar(self):
         self.sidebar.setVisible(not self.sidebar.isVisible())
@@ -109,6 +150,10 @@ class MainWindow(QMainWindow):
                 self.df = pd.read_csv(file_name, encoding="utf-16")
                 self.plotted_df = self.df
                 self.model.set_data_frame(self.df)
+                header = self.table_view.horizontalHeader()
+                last_col_index = self.model.columnCount() - 1
+                if last_col_index > 0:
+                    header.setSectionResizeMode(last_col_index, QHeaderView.Stretch)
                 self.plot_data()
                 self.proxy_model.setFilterKeyColumn(len(self.df.columns) - 1)
             except Exception as e:
@@ -138,12 +183,20 @@ class MainWindow(QMainWindow):
         if not self.plotted_df.empty:
             if self.x_column and self.y_column:
                 try:
+                    y_values = self.plotted_df[self.y_column]
+                    title = f"Plot {self.y_column} vs {self.x_column}"
+
+                    if self.plot_mode == "Cumulative":
+                        y_values = y_values.cumsum()
+                        title = f"Cumulative Plot {self.y_column} vs {self.x_column}"
+
                     self.line, = self.ax.plot(self.plotted_df[self.x_column],
-                                              self.plotted_df[self.y_column],
+                                              y_values,
                                               marker='o',
+                                              markersize=3,
                                               linestyle='-',
                                               color='skyblue')
-                    self.ax.set_title(f"Plot {self.y_column} vs {self.x_column}")
+                    self.ax.set_title(title)
                     self.ax.grid(True)
 
                     # Offset the x_labels for readability
@@ -160,12 +213,11 @@ class MainWindow(QMainWindow):
         self.canvas.draw()
 
     def update_annot(self, ind):
+        idx = ind["ind"][0]
         x, y = self.line.get_data()
-        self.annot.xy = (x[ind["ind"][0]], y[ind["ind"][0]])
-        # Get the specific data point's coordinates
-        x_val = self.df[self.x_column].iloc[ind["ind"][0]]
-        y_val = self.df[self.y_column].iloc[ind["ind"][0]]
-        text = f"{self.x_column}: {x_val}\n{self.y_column}: {y_val}"
+        self.annot.xy = (x[idx], y[idx])
+
+        text = f"{self.x_column}: {x[idx]}\n{self.y_column}: {y[idx]}"
         self.annot.set_text(text)
         self.annot.get_bbox_patch().set_alpha(0.4)
 
@@ -207,6 +259,13 @@ class MainWindow(QMainWindow):
             if vis:
                 self.annot.set_visible(False)
                 self.canvas.draw_idle()
+
+    def showEvent(self, event):
+        """Called automatically when the window is shown."""
+        # Set focus to the main window to deselect any input widgets
+        self.setFocus()
+        # Call the parent class's implementation to ensure default behavior
+        super().showEvent(event)
 
 
 def main():

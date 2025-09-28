@@ -4,7 +4,7 @@ import numpy as np
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLineEdit, QCheckBox, QTableView, QFileDialog, QLabel,
-    QSplitter, QSizePolicy, QComboBox
+    QSplitter, QSizePolicy, QComboBox, QHeaderView
 )
 from PyQt5.QtCore import Qt, QSortFilterProxyModel
 from matplotlib.backend_bases import MouseEvent, Event
@@ -14,6 +14,23 @@ from pandasDataModel import PandasModel
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from typing import cast
+
+
+"""
+TODO:
+-   Add functionality to include swap and commission prices into balance calculation, including a checkbox to be able to
+    view the return of the strategy without commission and swap
+-   Fix the sidebar view, currently the Index column is cut off
+-   Change the display of the graph, currently there are gaps in the graph if there are gaps in the positionIDs
+-   Add a checkbox next to each row of the table to be able to exclude single entries (Usecase: errors in the strategy
+    or extreme outliers can be accounted for this way)
+-   Add the ability to filter for trade direction
+-   Add the ability to switch to different graphs with a dropbox, for example plot the volumes, or use the position
+    opening time as x-axis
+-   Future implementations: Add a statisical overview tab to display some key figures and calculations of the strategy,
+    like averages (Position size, return, swap, duration of the position, price difference in %, some important figures like the MT5 Strategy
+    tester has them to be able to compare)
+"""
 
 
 class MainWindow(QMainWindow):
@@ -38,6 +55,9 @@ class MainWindow(QMainWindow):
         sidebar_layout = QVBoxLayout(self.sidebar)
 
         self.filter_input = QLineEdit()
+        self.filter_input.setStyleSheet("""
+            background-color: white;
+            color: black;""")
         self.filter_input.setPlaceholderText("Type to filter...")
         self.filter_checkbox = QCheckBox("Enable Filter")
 
@@ -48,6 +68,9 @@ class MainWindow(QMainWindow):
         # Plot mode dropdown
         self.plot_mode_combo = QComboBox()
         self.plot_mode_combo.addItems(["Individual", "Cumulative"])
+        self.plot_mode_combo.setStyleSheet("""
+            background-color: white;
+            color: black;""")
         sidebar_layout.addWidget(QLabel("Plot Mode:"))
         sidebar_layout.addWidget(self.plot_mode_combo)
 
@@ -87,6 +110,7 @@ class MainWindow(QMainWindow):
         self.annot.set_visible(False)
         self.line = Line2D([0], [0])
         splitter.addWidget(self.canvas)
+        splitter.setSizes([1, 40])
 
         main_content_layout.addWidget(splitter)
 
@@ -126,6 +150,10 @@ class MainWindow(QMainWindow):
                 self.df = pd.read_csv(file_name, encoding="utf-16")
                 self.plotted_df = self.df
                 self.model.set_data_frame(self.df)
+                header = self.table_view.horizontalHeader()
+                last_col_index = self.model.columnCount() - 1
+                if last_col_index > 0:
+                    header.setSectionResizeMode(last_col_index, QHeaderView.Stretch)
                 self.plot_data()
                 self.proxy_model.setFilterKeyColumn(len(self.df.columns) - 1)
             except Exception as e:
@@ -165,6 +193,7 @@ class MainWindow(QMainWindow):
                     self.line, = self.ax.plot(self.plotted_df[self.x_column],
                                               y_values,
                                               marker='o',
+                                              markersize=3,
                                               linestyle='-',
                                               color='skyblue')
                     self.ax.set_title(title)
@@ -230,6 +259,13 @@ class MainWindow(QMainWindow):
             if vis:
                 self.annot.set_visible(False)
                 self.canvas.draw_idle()
+
+    def showEvent(self, event):
+        """Called automatically when the window is shown."""
+        # Set focus to the main window to deselect any input widgets
+        self.setFocus()
+        # Call the parent class's implementation to ensure default behavior
+        super().showEvent(event)
 
 
 def main():

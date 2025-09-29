@@ -74,6 +74,19 @@ class MainWindow(QMainWindow):
         sidebar_layout.addWidget(QLabel("Plot Mode:"))
         sidebar_layout.addWidget(self.plot_mode_combo)
 
+        # -- Plotting Checkboxes --
+        # Create and add checkboxes for selecting data to plot.
+        sidebar_layout.addWidget(QLabel("Plot Columns:"))
+        self.balance_checkbox = QCheckBox("Balance")
+        self.balance_checkbox.setChecked(True)
+        self.swap_checkbox = QCheckBox("Swap")
+        self.swap_checkbox.setChecked(True)
+        self.commission_checkbox = QCheckBox("Commission")
+        self.commission_checkbox.setChecked(True)
+        sidebar_layout.addWidget(self.balance_checkbox)
+        sidebar_layout.addWidget(self.swap_checkbox)
+        sidebar_layout.addWidget(self.commission_checkbox)
+
         sidebar_layout.addStretch()
         main_layout.addWidget(self.sidebar)
 
@@ -119,7 +132,6 @@ class MainWindow(QMainWindow):
         self.plotted_df = pd.DataFrame()
         self.model = PandasModel()
         self.x_column = "Position ID"
-        self.y_column = "Profit"
         self.plot_mode = "Individual"  # Default plot mode
         self.proxy_model = QSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
@@ -135,6 +147,9 @@ class MainWindow(QMainWindow):
         self.toggle_button.clicked.connect(self.toggle_sidebar)
         self.plot_mode_combo.currentIndexChanged.connect(self.update_plot_mode)
         self.canvas.mpl_connect("motion_notify_event", self.hover)
+        self.balance_checkbox.stateChanged.connect(self.plot_data)
+        self.swap_checkbox.stateChanged.connect(self.plot_data)
+        self.commission_checkbox.stateChanged.connect(self.plot_data)
 
     def update_plot_mode(self):
         self.plot_mode = self.plot_mode_combo.currentText()
@@ -173,6 +188,8 @@ class MainWindow(QMainWindow):
         self.plot_data()
 
     def plot_data(self):
+        # -- Plot Data --
+        # Redraws the plot based on the current data and user selections.
         """Draw a simple matplotlib plot in the bottom area."""
         self.ax.clear()
         self.annot = self.ax.annotate("", xy=(0, 0), xytext=(-20, 20), textcoords="offset points",
@@ -181,14 +198,31 @@ class MainWindow(QMainWindow):
         self.annot.set_visible(False)
 
         if not self.plotted_df.empty:
-            if self.x_column and self.y_column:
+            if self.x_column:
                 try:
-                    y_values = self.plotted_df[self.y_column]
-                    title = f"Plot {self.y_column} vs {self.x_column}"
+                    y_values = pd.Series(np.zeros(len(self.plotted_df)), index=self.plotted_df.index)
+                    selected_columns = []
 
+                    if self.balance_checkbox.isChecked():
+                        y_values += self.plotted_df['Profit'].fillna(0)
+                        selected_columns.append('Balance')
+                    if self.swap_checkbox.isChecked():
+                        y_values += self.plotted_df['Swap'].fillna(0)
+                        selected_columns.append('Swap')
+                    if self.commission_checkbox.isChecked():
+                        y_values += self.plotted_df['Commission'].fillna(0)
+                        selected_columns.append('Commission')
+
+                    if not selected_columns:
+                        self.line = Line2D([0], [0])
+                        self.ax.text(0.5, 0.5, "No data selected", ha="center", va="center", transform=self.ax.transAxes)
+                        self.canvas.draw()
+                        return
+
+                    title = f"Plot of {', '.join(selected_columns)} vs {self.x_column}"
                     if self.plot_mode == "Cumulative":
                         y_values = y_values.cumsum()
-                        title = f"Cumulative Plot {self.y_column} vs {self.x_column}"
+                        title = f"Cumulative {title}"
 
                     self.line, = self.ax.plot(self.plotted_df[self.x_column],
                                               y_values,
@@ -203,25 +237,31 @@ class MainWindow(QMainWindow):
                     for text in self.ax.get_xticklabels()[1::2]:
                         text.set_y(-0.04)
 
+                except KeyError as e:
+                    self.ax.text(0.5, 0.5, f"Column not found: {e}\nPlease check your CSV file.",
+                                 ha="center", va="center", transform=self.ax.transAxes)
                 except Exception as e:
                     self.ax.text(0.5, 0.5, f"Could not plot Graph, Exception:\n{e}",
                                  ha="center", va="center", transform=self.ax.transAxes)
-
         else:
             self.ax.text(0.5, 0.5, "No data loaded", ha="center", va="center", transform=self.ax.transAxes)
 
         self.canvas.draw()
 
     def update_annot(self, ind):
+        # -- Update Annotation --
+        # Updates the annotation text and position when hovering over a data point.
         idx = ind["ind"][0]
         x, y = self.line.get_data()
         self.annot.xy = (x[idx], y[idx])
 
-        text = f"{self.x_column}: {x[idx]}\n{self.y_column}: {y[idx]}"
+        text = f"{self.x_column}: {x[idx]}\nValue: {y[idx]:.2f}"
         self.annot.set_text(text)
         self.annot.get_bbox_patch().set_alpha(0.4)
 
     def hover(self, mouse_event: Event):
+        # -- Hover Event --
+        # Handles mouse hover events to show or hide the data point annotation.
         vis = self.annot.get_visible()
         event = cast(MouseEvent, mouse_event)
 
@@ -269,6 +309,8 @@ class MainWindow(QMainWindow):
 
 
 def main():
+    # -- Main Execution --
+    # Initializes and runs the PyQt5 application.
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
@@ -276,4 +318,6 @@ def main():
 
 
 if __name__ == "__main__":
+    # -- Application Entry Point --
+    # Ensures that the main function is called only when the script is executed directly.
     main()

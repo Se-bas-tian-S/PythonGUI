@@ -129,7 +129,6 @@ class MainWindow(QMainWindow):
 
         # Internal data
         self.df = pd.DataFrame()
-        self.plotted_df = pd.DataFrame()
         self.model = PandasModel()
         self.x_column = "Position ID"
         self.plot_mode = "Individual"  # Default plot mode
@@ -141,6 +140,7 @@ class MainWindow(QMainWindow):
         self.table_view.setModel(self.proxy_model)
 
         # Connections
+        self.model.data_updated.connect(self.plot_data)
         self.filter_input.textChanged.connect(self.update_filter)
         self.filter_checkbox.stateChanged.connect(self.update_filter)
         self.load_button.clicked.connect(self.load_csv)
@@ -163,14 +163,9 @@ class MainWindow(QMainWindow):
         if file_name:
             try:
                 self.df = pd.read_csv(file_name, encoding="utf-16")
-                self.plotted_df = self.df
                 self.model.set_data_frame(self.df)
-                header = self.table_view.horizontalHeader()
-                last_col_index = self.model.columnCount() - 1
-                if last_col_index > 0:
-                    header.setSectionResizeMode(last_col_index, QHeaderView.Stretch)
-                self.plot_data()
-                self.proxy_model.setFilterKeyColumn(len(self.df.columns) - 1)
+                self.table_view.resizeColumnsToContents()
+                self.proxy_model.setFilterKeyColumn(-1)
             except Exception as e:
                 print(f"Failed to load CSV: {e}")
 
@@ -178,13 +173,8 @@ class MainWindow(QMainWindow):
         search_text = self.filter_input.text()
         if self.filter_checkbox.isChecked():
             self.proxy_model.setFilterFixedString(search_text)
-            source_indices = [self.proxy_model.mapToSource(self.proxy_model.index(row, 0)).row()
-                              for row in range(self.proxy_model.rowCount())]
-            self.plotted_df = self.df.iloc[source_indices]
         else:
             self.proxy_model.setFilterFixedString("")
-            self.plotted_df = self.df
-
         self.plot_data()
 
     def plot_data(self):
@@ -197,25 +187,34 @@ class MainWindow(QMainWindow):
                                       arrowprops=dict(arrowstyle="->"))
         self.annot.set_visible(False)
 
-        if not self.plotted_df.empty:
-            if self.x_column:
+        if not self.df.empty:
+            # Determine which rows to plot based on filters and checkboxes
+            visible_source_indices = {self.proxy_model.mapToSource(self.proxy_model.index(row, 0)).row()
+                                      for row in range(self.proxy_model.rowCount())}
+            checked_mask = self.model.get_checked_rows_mask()
+            indices_to_plot = [i for i, is_checked in enumerate(checked_mask) if
+                               is_checked and i in visible_source_indices]
+            plotted_df = self.df.iloc[indices_to_plot]
+
+            if not plotted_df.empty and self.x_column:
                 try:
-                    y_values = pd.Series(np.zeros(len(self.plotted_df)), index=self.plotted_df.index)
+                    y_values = pd.Series(np.zeros(len(plotted_df)), index=plotted_df.index)
                     selected_columns = []
 
                     if self.balance_checkbox.isChecked():
-                        y_values += self.plotted_df['Profit'].fillna(0)
+                        y_values += plotted_df['Profit'].fillna(0)
                         selected_columns.append('Balance')
                     if self.swap_checkbox.isChecked():
-                        y_values += self.plotted_df['Swap'].fillna(0)
+                        y_values += plotted_df['Swap'].fillna(0)
                         selected_columns.append('Swap')
                     if self.commission_checkbox.isChecked():
-                        y_values += self.plotted_df['Commission'].fillna(0)
+                        y_values += plotted_df['Commission'].fillna(0)
                         selected_columns.append('Commission')
 
                     if not selected_columns:
                         self.line = Line2D([0], [0])
-                        self.ax.text(0.5, 0.5, "No data selected", ha="center", va="center", transform=self.ax.transAxes)
+                        self.ax.text(0.5, 0.5, "No data selected", ha="center", va="center",
+                                     transform=self.ax.transAxes)
                         self.canvas.draw()
                         return
 
@@ -224,7 +223,7 @@ class MainWindow(QMainWindow):
                         y_values = y_values.cumsum()
                         title = f"Cumulative {title}"
 
-                    self.line, = self.ax.plot(self.plotted_df[self.x_column],
+                    self.line, = self.ax.plot(plotted_df[self.x_column],
                                               y_values,
                                               marker='o',
                                               markersize=3,
@@ -283,13 +282,13 @@ class MainWindow(QMainWindow):
         xy_pixels = self.ax.transData.transform(np.c_[x_data, y_data])
 
         # Calculate squared distance from mouse to all points in pixel space
-        distances_sq = np.sum((xy_pixels - (event.x, event.y))**2, axis=1)
+        distances_sq = np.sum((xy_pixels - (event.x, event.y)) ** 2, axis=1)
 
         # Find the closest point
         min_dist_ind = np.argmin(distances_sq)
 
         # Threshold in pixels squared (e.g. 10px radius)
-        pixel_threshold_sq = 10**2
+        pixel_threshold_sq = 10 ** 2
 
         if distances_sq[min_dist_ind] < pixel_threshold_sq:
             self.update_annot({"ind": [min_dist_ind]})

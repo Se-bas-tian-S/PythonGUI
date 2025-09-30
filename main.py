@@ -74,6 +74,15 @@ class MainWindow(QMainWindow):
         sidebar_layout.addWidget(QLabel("Plot Mode:"))
         sidebar_layout.addWidget(self.plot_mode_combo)
 
+        # X-axis mode dropdown
+        self.x_axis_mode_combo = QComboBox()
+        self.x_axis_mode_combo.addItems(["consecutive", "opening time", "closing time"])
+        self.x_axis_mode_combo.setStyleSheet("""
+            background-color: white;
+            color: black;""")
+        sidebar_layout.addWidget(QLabel("X-Axis Mode:"))
+        sidebar_layout.addWidget(self.x_axis_mode_combo)
+
         # -- Plotting Checkboxes --
         # Create and add checkboxes for selecting data to plot.
         sidebar_layout.addWidget(QLabel("Plot Columns:"))
@@ -130,7 +139,7 @@ class MainWindow(QMainWindow):
         # Internal data
         self.df = pd.DataFrame()
         self.model = PandasModel()
-        self.x_column = "Position ID"
+        self.x_axis_mode = "consecutive"  # Default x-axis mode
         self.plot_mode = "Individual"  # Default plot mode
         self.proxy_model = QSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
@@ -146,10 +155,15 @@ class MainWindow(QMainWindow):
         self.load_button.clicked.connect(self.load_csv)
         self.toggle_button.clicked.connect(self.toggle_sidebar)
         self.plot_mode_combo.currentIndexChanged.connect(self.update_plot_mode)
+        self.x_axis_mode_combo.currentIndexChanged.connect(self.update_x_axis_mode)
         self.canvas.mpl_connect("motion_notify_event", self.hover)
         self.balance_checkbox.stateChanged.connect(self.plot_data)
         self.swap_checkbox.stateChanged.connect(self.plot_data)
         self.commission_checkbox.stateChanged.connect(self.plot_data)
+
+    def update_x_axis_mode(self):
+        self.x_axis_mode = self.x_axis_mode_combo.currentText()
+        self.plot_data()
 
     def update_plot_mode(self):
         self.plot_mode = self.plot_mode_combo.currentText()
@@ -163,6 +177,11 @@ class MainWindow(QMainWindow):
         if file_name:
             try:
                 self.df = pd.read_csv(file_name, encoding="utf-16")
+                # Convert time columns to datetime objects
+                if 'Open Time' in self.df.columns:
+                    self.df['Open Time'] = pd.to_datetime(self.df['Open Time'])
+                if 'Close Time' in self.df.columns:
+                    self.df['Close Time'] = pd.to_datetime(self.df['Close Time'])
                 self.model.set_data_frame(self.df)
                 self.table_view.resizeColumnsToContents()
                 self.proxy_model.setFilterKeyColumn(-1)
@@ -196,7 +215,7 @@ class MainWindow(QMainWindow):
                                is_checked and i in visible_source_indices]
             plotted_df = self.df.iloc[indices_to_plot]
 
-            if not plotted_df.empty and self.x_column:
+            if not plotted_df.empty:
                 try:
                     y_values = pd.Series(np.zeros(len(plotted_df)), index=plotted_df.index)
                     selected_columns = []
@@ -218,12 +237,24 @@ class MainWindow(QMainWindow):
                         self.canvas.draw()
                         return
 
-                    title = f"Plot of {', '.join(selected_columns)} vs {self.x_column}"
+                    # Determine x_values based on the selected mode
+                    x_label = ""
+                    if self.x_axis_mode == "consecutive":
+                        x_values = np.arange(len(plotted_df))
+                        x_label = "Trade Number"
+                    elif self.x_axis_mode == "opening time":
+                        x_values = plotted_df['Open Time']
+                        x_label = "Opening Time"
+                    elif self.x_axis_mode == "closing time":
+                        x_values = plotted_df['Close Time']
+                        x_label = "Closing Time"
+
+                    title = f"Plot of {', '.join(selected_columns)} vs {x_label}"
                     if self.plot_mode == "Cumulative":
                         y_values = y_values.cumsum()
                         title = f"Cumulative {title}"
 
-                    self.line, = self.ax.plot(plotted_df[self.x_column],
+                    self.line, = self.ax.plot(x_values,
                                               y_values,
                                               marker='o',
                                               markersize=3,
@@ -232,9 +263,12 @@ class MainWindow(QMainWindow):
                     self.ax.set_title(title)
                     self.ax.grid(True)
 
-                    # Offset the x_labels for readability
-                    for text in self.ax.get_xticklabels()[1::2]:
-                        text.set_y(-0.04)
+                    # Auto-format the x-axis for dates or offset for readability
+                    if self.x_axis_mode in ["opening time", "closing time"]:
+                        self.figure.autofmt_xdate()
+                    else:
+                        for text in self.ax.get_xticklabels()[1::2]:
+                            text.set_y(-0.04)
 
                 except KeyError as e:
                     self.ax.text(0.5, 0.5, f"Column not found: {e}\nPlease check your CSV file.",
@@ -250,11 +284,29 @@ class MainWindow(QMainWindow):
     def update_annot(self, ind):
         # -- Update Annotation --
         # Updates the annotation text and position when hovering over a data point.
+        from matplotlib.dates import num2date
         idx = ind["ind"][0]
         x, y = self.line.get_data()
         self.annot.xy = (x[idx], y[idx])
 
-        text = f"{self.x_column}: {x[idx]}\nValue: {y[idx]:.2f}"
+        x_val = x[idx]
+        y_val = y[idx]
+
+        x_label = ""
+        if self.x_axis_mode == "consecutive":
+            x_label = "Trade Number"
+            text = f"{x_label}: {int(x_val)}\nValue: {y_val:.2f}"
+        elif self.x_axis_mode in ["opening time", "closing time"]:
+            if self.x_axis_mode == "opening time":
+                x_label = "Opening Time"
+            else:  # closing time
+                x_label = "Closing Time"
+            date_str = num2date(x_val).strftime('%Y-%m-%d %H:%M:%S')
+            text = f"{x_label}: {date_str}\nValue: {y_val:.2f}"
+        else:
+            # Fallback, should not be reached
+            text = f"X: {x_val}\nValue: {y_val:.2f}"
+
         self.annot.set_text(text)
         self.annot.get_bbox_patch().set_alpha(0.4)
 

@@ -1,16 +1,14 @@
 import sys
 import pandas as pd
+from pandasDataModel import PandasModel
 import numpy as np
-from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLineEdit, QCheckBox, QTableView, QFileDialog, QLabel,
-    QSplitter, QSizePolicy, QComboBox, QHeaderView
-)
 from PyQt5.QtCore import Qt, QSortFilterProxyModel
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLineEdit, QCheckBox, QTableView,
+    QFileDialog, QLabel, QSplitter, QSizePolicy, QComboBox, QHeaderView
+)
 from matplotlib.backend_bases import MouseEvent, Event
 from matplotlib.lines import Line2D
-
-from pandasDataModel import PandasModel
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from typing import cast
@@ -28,91 +26,174 @@ TODO:
 -   Add the ability to switch to different graphs with a dropbox, for example plot the volumes, or use the position
     opening time as x-axis
 -   Future implementations: Add a statisical overview tab to display some key figures and calculations of the strategy,
-    like averages (Position size, return, swap, duration of the position, price difference in %, some important figures like the MT5 Strategy
-    tester has them to be able to compare)
+    like averages (Position size, return, swap, duration of the position, price difference in %, some important figures 
+    like the MT5 Strategy tester has them to be able to compare)
 """
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+
+        """---Application---"""
+        # region Application
+
+        """---Main Window---"""
+        # region Main Window
+
+        """---main_layout---"""
+        # region Init Main Window Layout
         self.setWindowTitle("CSV Table Viewer with Filtering & Visualization")
         self.resize(1000, 600)
         self.showMaximized()
-
-        # Central Widget and Main Layout
+        # Structure
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QHBoxLayout(central_widget)
+        # endregion
+        """---main_layout---"""
 
-        # Sidebar
+        """---main_layout Contents---"""
+        # region main_layout Contents
+
+        """---Sidebar---"""
+        # region Add sidebar to main_layout
+
+        # Init
         self.sidebar = QWidget()
         self.sidebar.setFixedWidth(250)
-        self.sidebar.setStyleSheet("""
-            background-color: #403e3e;
-            color: white;
-        """)
+        self.sidebar.setStyleSheet("background-color: #403e3e; color: white;")
         sidebar_layout = QVBoxLayout(self.sidebar)
+        main_layout.addWidget(self.sidebar)
 
+        """Sidebar Contents"""
+        # region Sidebar Contents
+
+        """Comment Filter"""
+        # region Comment Filter
+
+        # Init Objects
+        filter_label = QLabel("Filter:")
         self.filter_input = QLineEdit()
-        self.filter_input.setStyleSheet("""
-            background-color: white;
-            color: black;""")
-        self.filter_input.setPlaceholderText("Type to filter...")
         self.filter_checkbox = QCheckBox("Enable Filter")
-
-        sidebar_layout.addWidget(QLabel("Filter:"))
+        # Style and defaults
+        self.filter_input.setStyleSheet("background-color: white; color: black;")
+        self.filter_input.setPlaceholderText("Comment filter...")
+        # Add to sidebar layout manager
+        sidebar_layout.addWidget(filter_label)
         sidebar_layout.addWidget(self.filter_input)
         sidebar_layout.addWidget(self.filter_checkbox)
+        # Connections
+        self.filter_input.textChanged.connect(self.update_filter)
+        self.filter_checkbox.stateChanged.connect(self.update_filter)
 
-        # Plot mode dropdown
+        # endregion
+        """Comment Filter"""
+
+        """Plot Modes"""
+        # region Plot Modes
+
+        # Init Objects
+        plot_mode_label = QLabel("Plot Mode:")
         self.plot_mode_combo = QComboBox()
+        # Style, Contents and defaults
         self.plot_mode_combo.addItems(["Individual", "Cumulative"])
-        self.plot_mode_combo.setStyleSheet("""
-            background-color: white;
-            color: black;""")
-        sidebar_layout.addWidget(QLabel("Plot Mode:"))
+        self.plot_mode_combo.setStyleSheet("background-color: white; color: black;")
+        # Add to sidebar layout manager
+        sidebar_layout.addWidget(plot_mode_label)
         sidebar_layout.addWidget(self.plot_mode_combo)
+        # Connections
+        self.plot_mode_combo.currentIndexChanged.connect(self.update_plot_mode)
 
-        # -- Plotting Checkboxes --
-        # Create and add checkboxes for selecting data to plot.
-        sidebar_layout.addWidget(QLabel("Plot Columns:"))
+        # endregion
+        """Plot Modes"""
+
+        """Plot Column Selectors"""
+        # region Plot Column Selectors
+
+        # Init Objects
+        plot_column_label = QLabel("Plot Columns:")
         self.balance_checkbox = QCheckBox("Balance")
-        self.balance_checkbox.setChecked(True)
         self.swap_checkbox = QCheckBox("Swap")
-        self.swap_checkbox.setChecked(True)
         self.commission_checkbox = QCheckBox("Commission")
+        # Style, Contents and Defaults
+        self.balance_checkbox.setChecked(True)
+        self.swap_checkbox.setChecked(True)
         self.commission_checkbox.setChecked(True)
+        # Add to sidebar layout manager
+        sidebar_layout.addWidget(plot_column_label)
         sidebar_layout.addWidget(self.balance_checkbox)
         sidebar_layout.addWidget(self.swap_checkbox)
         sidebar_layout.addWidget(self.commission_checkbox)
+        # Connections
+        self.balance_checkbox.stateChanged.connect(self.plot_data)
+        self.swap_checkbox.stateChanged.connect(self.plot_data)
+        self.commission_checkbox.stateChanged.connect(self.plot_data)
 
+        # endregion
+        """Plot Column Selectors"""
+
+        # Stretch at the end
         sidebar_layout.addStretch()
-        main_layout.addWidget(self.sidebar)
 
-        # Main Content Area
+        # endregion
+        """Sidebar Contents"""
+
+        # endregion
+        """---Sidebar---"""
+
+        """---Main Content---"""
+        # region Main Content
         main_content_widget = QWidget()
         main_content_layout = QVBoxLayout(main_content_widget)
-        main_layout.addWidget(main_content_widget)
 
-        # Top bar with Toggle Button and Load CSV
+        """---Top Bar---"""
+        # region Top Bar
+
+        # Add to main_layout
+        main_layout.addWidget(main_content_widget)
         top_bar_layout = QHBoxLayout()
+
+        """---Top Bar Contents---"""
+        # region Top Bar Content
+
+        # Init Objects
         self.toggle_button = QPushButton("Toggle Sidebar")
         self.load_button = QPushButton("Load CSV")
+        # Add to top_bar_layout
         top_bar_layout.addWidget(self.toggle_button)
         top_bar_layout.addWidget(self.load_button)
         top_bar_layout.addStretch()
+        # Connections
+        self.load_button.clicked.connect(self.load_csv)
+        self.toggle_button.clicked.connect(self.toggle_sidebar)
+
+        # endregion
+        """---Top Bar Contents---"""
+
+        # Add to main_content_layout
         main_content_layout.addLayout(top_bar_layout)
 
-        # Splitter: Table (top) and Visualization Area (bottom)
-        splitter = QSplitter(Qt.Vertical)
+        # endregion
+        """---Top Bar---"""
 
-        # Table
+        """---Vertical Splitter---"""
+        # region Vertical Splitter
+
+        # Init Objects
+        table_view_canvas_splitter = QSplitter(Qt.Vertical)
+        table_view_canvas_splitter.setSizes([1, 40])
+
+        """---Splitter Contents---"""
+        # region Splitter Contents
+
+        # Init and defaults
         self.table_view = QTableView()
         self.table_view.setSortingEnabled(True)
-        splitter.addWidget(self.table_view)
 
-        # Visualization area (matplotlib canvas)
+        """---Plotting Area"""
+        # region Plotting Area
+
         self.figure = Figure()
         self.canvas = FigureCanvas(self.figure)
         self.canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -122,34 +203,51 @@ class MainWindow(QMainWindow):
                                       arrowprops=dict(arrowstyle="->"))
         self.annot.set_visible(False)
         self.line = Line2D([0], [0])
-        splitter.addWidget(self.canvas)
-        splitter.setSizes([1, 40])
+        # Connections
+        self.canvas.mpl_connect("motion_notify_event", self.hover)
 
-        main_content_layout.addWidget(splitter)
+        # endregion
+        """---Plotting Area"""
 
-        # Internal data
+        # Add to splitter
+        table_view_canvas_splitter.addWidget(self.table_view)
+        table_view_canvas_splitter.addWidget(self.canvas)
+
+        # endregion
+        """---Splitter Contents---"""
+
+        # Add to main_content_layout
+        main_content_layout.addWidget(table_view_canvas_splitter)
+
+        # endregion
+        """---Vertical Splitter---"""
+
+        # endregion
+        """---Main Content---"""
+
+        # endregion
+        """---main_layout Contents---"""
+
+        # endregion
+        """---Main Window---"""
+
+        # endregion
+        """---Application---"""
+
+        """---Internal Data---"""
+        # region Internal data
         self.df = pd.DataFrame()
         self.model = PandasModel()
         self.x_column = "Position ID"
-        self.plot_mode = "Individual"  # Default plot mode
+        self.plot_mode = "Individual"
         self.proxy_model = QSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
         self.proxy_model.setFilterCaseSensitivity(Qt.CaseInsensitive)
-        self.proxy_model.setFilterKeyColumn(-1)  # search all columns
-
         self.table_view.setModel(self.proxy_model)
-
         # Connections
         self.model.data_updated.connect(self.plot_data)
-        self.filter_input.textChanged.connect(self.update_filter)
-        self.filter_checkbox.stateChanged.connect(self.update_filter)
-        self.load_button.clicked.connect(self.load_csv)
-        self.toggle_button.clicked.connect(self.toggle_sidebar)
-        self.plot_mode_combo.currentIndexChanged.connect(self.update_plot_mode)
-        self.canvas.mpl_connect("motion_notify_event", self.hover)
-        self.balance_checkbox.stateChanged.connect(self.plot_data)
-        self.swap_checkbox.stateChanged.connect(self.plot_data)
-        self.commission_checkbox.stateChanged.connect(self.plot_data)
+        # endregion
+        """---Internal Data---"""
 
     def update_plot_mode(self):
         self.plot_mode = self.plot_mode_combo.currentText()
@@ -164,8 +262,11 @@ class MainWindow(QMainWindow):
             try:
                 self.df = pd.read_csv(file_name, encoding="utf-16")
                 self.model.set_data_frame(self.df)
-                self.table_view.resizeColumnsToContents()
-                self.proxy_model.setFilterKeyColumn(-1)
+                header = self.table_view.horizontalHeader()
+                last_col_index = self.model.columnCount() - 1
+                if last_col_index > 0:
+                    header.setSectionResizeMode(last_col_index, QHeaderView.Stretch)
+                self.proxy_model.setFilterKeyColumn(len(self.df.columns))
             except Exception as e:
                 print(f"Failed to load CSV: {e}")
 

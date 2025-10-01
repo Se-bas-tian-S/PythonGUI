@@ -1,6 +1,7 @@
 import sys
 import pandas as pd
 from pandasDataModel import PandasModel
+from customProxyModel import CustomProxyModel
 import numpy as np
 from PyQt5.QtCore import Qt, QSortFilterProxyModel
 from PyQt5.QtWidgets import (
@@ -17,13 +18,15 @@ from typing import cast
 
 """
 TODO:
--   Change the display of the graph, currently there are gaps in the graph if there are gaps in the positionIDs
+-   Plot doesn't resize correctly, fix the init size of the splitter
 -   Add the ability to filter for trade direction
--   Add the ability to switch to different graphs with a dropbox, for example plot the volumes, or use the position
-    opening time as x-axis
 -   Future implementations: Add a statisical overview tab to display some key figures and calculations of the strategy,
     like averages (Position size, return, swap, duration of the position, price difference in %, some important figures 
     like the MT5 Strategy tester has them to be able to compare)
+-   Move Top Bar as a Header to the very top of the Application, including a tab view to switch between different
+    windows, first window current display, second window direct comparison of tables
+-   Add a direct comparison between two dataframes, in the graph as well as entries directly in the Table, match either
+    Opening Time roughly or just display in order next to each other with differences
 """
 
 
@@ -80,8 +83,8 @@ class MainWindow(QMainWindow):
         sidebar_layout.addWidget(self.filter_input)
         sidebar_layout.addWidget(self.filter_checkbox)
         # Connections
-        self.filter_input.textChanged.connect(self.update_filter)
-        self.filter_checkbox.stateChanged.connect(self.update_filter)
+        self.filter_input.textChanged.connect(self._update_filters)
+        self.filter_checkbox.stateChanged.connect(self._update_filters)
 
         # endregion
         """---Comment Filter---"""
@@ -137,9 +140,7 @@ class MainWindow(QMainWindow):
         self.x_axis_mode_combo = QComboBox()
         # Style, Contents and Defaults
         self.x_axis_mode_combo.addItems(["consecutive", "opening time", "closing time"])
-        self.x_axis_mode_combo.setStyleSheet("""
-                    background-color: white;
-                    color: black;""")
+        self.x_axis_mode_combo.setStyleSheet("""background-color: white; color: black;""")
         sidebar_layout.addWidget(label)
         # Add to sidebar layout manager
         sidebar_layout.addWidget(self.x_axis_mode_combo)
@@ -148,6 +149,27 @@ class MainWindow(QMainWindow):
 
         # endregion
         """---X-Axis Combobox---"""
+
+        """---Direction Filter---"""
+        # region Direction Filter
+
+        # Init Objects
+        direction_filter_label = QLabel("Directions:")
+        self.long_checkbox = QCheckBox("Long")
+        self.short_checkbox = QCheckBox("Short")
+        # Style, Contents and Defaults
+        self.long_checkbox.setChecked(True)
+        self.short_checkbox.setChecked(True)
+        # Add to sidebar layout manager
+        sidebar_layout.addWidget(direction_filter_label)
+        sidebar_layout.addWidget(self.long_checkbox)
+        sidebar_layout.addWidget(self.short_checkbox)
+        # Connections
+        self.long_checkbox.stateChanged.connect(self._update_filters)
+        self.short_checkbox.stateChanged.connect(self._update_filters)
+
+        # endregion
+        """---Direction Filter---"""
 
         # Stretch at the end
         sidebar_layout.addStretch()
@@ -198,7 +220,7 @@ class MainWindow(QMainWindow):
 
         # Init Objects
         table_view_canvas_splitter = QSplitter(Qt.Vertical)
-        table_view_canvas_splitter.setSizes([1, 40])
+        table_view_canvas_splitter.setSizes([100, 200])
 
         """---Splitter Contents---"""
         # region Splitter Contents
@@ -256,7 +278,7 @@ class MainWindow(QMainWindow):
         self.model = PandasModel()
         self.x_axis_mode = "consecutive"
         self.plot_mode = "Individual"
-        self.proxy_model = QSortFilterProxyModel()
+        self.proxy_model = CustomProxyModel()
         self.proxy_model.setSourceModel(self.model)
         self.table_view.setModel(self.proxy_model)
         # Connections
@@ -296,12 +318,24 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 print(f"Failed to load CSV: {e}")
 
-    def update_filter(self):
+    def _update_filters(self):
+        # Unified to update all filters
+        # Update Comment filter
         search_text = self.filter_input.text()
-        if self.filter_checkbox.isChecked():
-            self.proxy_model.setFilterFixedString(search_text)
+        is_enabled = self.filter_checkbox.isChecked()
+        self.proxy_model.set_comment_filter(search_text, is_enabled)
+
+        # Update direction filter
+        if self.long_checkbox.isChecked() and self.short_checkbox.isChecked():
+            self.proxy_model.set_direction_filter("Both")
+        elif self.short_checkbox.isChecked():
+            self.proxy_model.set_direction_filter("Short")
+        elif self.long_checkbox.isChecked():
+            self.proxy_model.set_direction_filter("Long")
         else:
-            self.proxy_model.setFilterFixedString("")
+            self.proxy_model.set_direction_filter("")
+
+
         self.plot_data()
 
     def plot_data(self):

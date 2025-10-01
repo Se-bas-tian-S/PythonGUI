@@ -11,17 +11,13 @@ from matplotlib.backend_bases import MouseEvent, Event
 from matplotlib.lines import Line2D
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+from matplotlib.dates import num2date
 from typing import cast
 
 
 """
 TODO:
--   Add functionality to include swap and commission prices into balance calculation, including a checkbox to be able to
-    view the return of the strategy without commission and swap
--   Fix the sidebar view, currently the Index column is cut off
 -   Change the display of the graph, currently there are gaps in the graph if there are gaps in the positionIDs
--   Add a checkbox next to each row of the table to be able to exclude single entries (Usecase: errors in the strategy
-    or extreme outliers can be accounted for this way)
 -   Add the ability to filter for trade direction
 -   Add the ability to switch to different graphs with a dropbox, for example plot the volumes, or use the position
     opening time as x-axis
@@ -57,7 +53,7 @@ class MainWindow(QMainWindow):
         # region main_layout Contents
 
         """---Sidebar---"""
-        # region Add sidebar to main_layout
+        # region Sidebar
 
         # Init
         self.sidebar = QWidget()
@@ -66,10 +62,10 @@ class MainWindow(QMainWindow):
         sidebar_layout = QVBoxLayout(self.sidebar)
         main_layout.addWidget(self.sidebar)
 
-        """Sidebar Contents"""
+        """---Sidebar Contents---"""
         # region Sidebar Contents
 
-        """Comment Filter"""
+        """---Comment Filter---"""
         # region Comment Filter
 
         # Init Objects
@@ -88,9 +84,9 @@ class MainWindow(QMainWindow):
         self.filter_checkbox.stateChanged.connect(self.update_filter)
 
         # endregion
-        """Comment Filter"""
+        """---Comment Filter---"""
 
-        """Plot Modes"""
+        """---Plot Modes---"""
         # region Plot Modes
 
         # Init Objects
@@ -106,9 +102,9 @@ class MainWindow(QMainWindow):
         self.plot_mode_combo.currentIndexChanged.connect(self.update_plot_mode)
 
         # endregion
-        """Plot Modes"""
+        """---Plot Modes---"""
 
-        """Plot Column Selectors"""
+        """---Plot Column Selectors---"""
         # region Plot Column Selectors
 
         # Init Objects
@@ -131,7 +127,27 @@ class MainWindow(QMainWindow):
         self.commission_checkbox.stateChanged.connect(self.plot_data)
 
         # endregion
-        """Plot Column Selectors"""
+        """---Plot Column Selectors---"""
+
+        """---X-Axis Combobox---"""
+        # region X-Axis Combobox
+
+        # Init Objects
+        label = QLabel("X-Axis Mode:")
+        self.x_axis_mode_combo = QComboBox()
+        # Style, Contents and Defaults
+        self.x_axis_mode_combo.addItems(["consecutive", "opening time", "closing time"])
+        self.x_axis_mode_combo.setStyleSheet("""
+                    background-color: white;
+                    color: black;""")
+        sidebar_layout.addWidget(label)
+        # Add to sidebar layout manager
+        sidebar_layout.addWidget(self.x_axis_mode_combo)
+        # Connections
+        self.x_axis_mode_combo.currentIndexChanged.connect(self.update_x_axis_mode)
+
+        # endregion
+        """---X-Axis Combobox---"""
 
         # Stretch at the end
         sidebar_layout.addStretch()
@@ -238,16 +254,19 @@ class MainWindow(QMainWindow):
         # region Internal data
         self.df = pd.DataFrame()
         self.model = PandasModel()
-        self.x_column = "Position ID"
+        self.x_axis_mode = "consecutive"
         self.plot_mode = "Individual"
         self.proxy_model = QSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
-        self.proxy_model.setFilterCaseSensitivity(Qt.CaseInsensitive)
         self.table_view.setModel(self.proxy_model)
         # Connections
         self.model.data_updated.connect(self.plot_data)
         # endregion
         """---Internal Data---"""
+
+    def update_x_axis_mode(self):
+        self.x_axis_mode = self.x_axis_mode_combo.currentText()
+        self.plot_data()
 
     def update_plot_mode(self):
         self.plot_mode = self.plot_mode_combo.currentText()
@@ -260,10 +279,17 @@ class MainWindow(QMainWindow):
         file_name, _ = QFileDialog.getOpenFileName(self, "Open CSV File", "", "CSV files (*.csv)")
         if file_name:
             try:
+                # Populate self.df
                 self.df = pd.read_csv(file_name, encoding="utf-16")
+                # Convert time columns to datetime objects
+                if 'Open Time' in self.df.columns:
+                    self.df['Open Time'] = pd.to_datetime(self.df['Open Time'])
+                if 'Close Time' in self.df.columns:
+                    self.df['Close Time'] = pd.to_datetime(self.df['Close Time'])
                 self.model.set_data_frame(self.df)
                 header = self.table_view.horizontalHeader()
                 last_col_index = self.model.columnCount() - 1
+                self.table_view.resizeColumnsToContents()
                 if last_col_index > 0:
                     header.setSectionResizeMode(last_col_index, QHeaderView.Stretch)
                 self.proxy_model.setFilterKeyColumn(len(self.df.columns))
@@ -297,7 +323,7 @@ class MainWindow(QMainWindow):
                                is_checked and i in visible_source_indices]
             plotted_df = self.df.iloc[indices_to_plot]
 
-            if not plotted_df.empty and self.x_column:
+            if not plotted_df.empty:
                 try:
                     y_values = pd.Series(np.zeros(len(plotted_df)), index=plotted_df.index)
                     selected_columns = []
@@ -319,12 +345,26 @@ class MainWindow(QMainWindow):
                         self.canvas.draw()
                         return
 
-                    title = f"Plot of {', '.join(selected_columns)} vs {self.x_column}"
+                    # Determine x_values based on the selected mode
+                    x_label = ""
+                    x_values = ""
+                    if self.x_axis_mode == "consecutive":
+                        x_values = np.arange(len(plotted_df))
+                        x_label = "Trade Number"
+                    elif self.x_axis_mode == "opening time":
+                        x_values = plotted_df['Open Time']
+                        x_label = "Opening Time"
+                    elif self.x_axis_mode == "closing time":
+                        x_values = plotted_df['Close Time']
+                        x_label = "Closing Time"
+
+                    title = f"Plot of {', '.join(selected_columns)} vs {x_label}"
+
                     if self.plot_mode == "Cumulative":
                         y_values = y_values.cumsum()
                         title = f"Cumulative {title}"
 
-                    self.line, = self.ax.plot(plotted_df[self.x_column],
+                    self.line, = self.ax.plot(x_values,
                                               y_values,
                                               marker='o',
                                               markersize=3,
@@ -333,9 +373,12 @@ class MainWindow(QMainWindow):
                     self.ax.set_title(title)
                     self.ax.grid(True)
 
-                    # Offset the x_labels for readability
-                    for text in self.ax.get_xticklabels()[1::2]:
-                        text.set_y(-0.04)
+                    # Auto-format the x-axis for dates or offset for readability
+                    if self.x_axis_mode in ["opening time", "closing time"]:
+                        self.figure.autofmt_xdate()
+                    else:
+                        for text in self.ax.get_xticklabels()[1::2]:
+                            text.set_y(-0.04)
 
                 except KeyError as e:
                     self.ax.text(0.5, 0.5, f"Column not found: {e}\nPlease check your CSV file.",
@@ -355,7 +398,22 @@ class MainWindow(QMainWindow):
         x, y = self.line.get_data()
         self.annot.xy = (x[idx], y[idx])
 
-        text = f"{self.x_column}: {x[idx]}\nValue: {y[idx]:.2f}"
+        x_val = x[idx]
+        y_val = y[idx]
+
+        if self.x_axis_mode == "consecutive":
+            x_label = "Trade Number"
+            text = f"{x_label}: {int(x_val)}\nValue: {y_val:.2f}"
+        elif self.x_axis_mode in ["opening time", "closing time"]:
+            if self.x_axis_mode == "opening time":
+                x_label = "Opening Time"
+            else:  # closing time
+                x_label = "Closing Time"
+            date_str = num2date(x_val).strftime('%Y-%m-%d %H:%M:%S')
+            text = f"{x_label}: {date_str}\nValue: {y_val:.2f}"
+        else:
+            # Fallback, should not be reached
+            text = f"X: {x_val}\nValue: {y_val:.2f}"
         self.annot.set_text(text)
         self.annot.get_bbox_patch().set_alpha(0.4)
 

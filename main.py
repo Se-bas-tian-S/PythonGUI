@@ -220,7 +220,6 @@ class MainWindow(QMainWindow):
 
         # Init Objects
         table_view_canvas_splitter = QSplitter(Qt.Vertical)
-        table_view_canvas_splitter.setSizes([100, 200])
 
         """---Splitter Contents---"""
         # region Splitter Contents
@@ -285,6 +284,9 @@ class MainWindow(QMainWindow):
         self.model.data_updated.connect(self.plot_data)
         # endregion
         """---Internal Data---"""
+
+        # Resize Splitter
+        table_view_canvas_splitter.setSizes([100, 50])
 
     def update_x_axis_mode(self):
         self.x_axis_mode = self.x_axis_mode_combo.currentText()

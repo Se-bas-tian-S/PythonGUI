@@ -219,8 +219,8 @@ class MainWindow(QMainWindow):
         # region Vertical Splitter
 
         # Init Objects
-        table_view_canvas_splitter = QSplitter(Qt.Vertical)
-        table_view_canvas_splitter.setSizes([400, 200])
+        self.table_view_canvas_splitter = QSplitter(Qt.Vertical)
+        self.table_view_canvas_splitter.setSizes([400, 200])
 
         """---Splitter Contents---"""
         # region Splitter Contents
@@ -248,14 +248,14 @@ class MainWindow(QMainWindow):
         """---Plotting Area"""
 
         # Add to splitter
-        table_view_canvas_splitter.addWidget(self.table_view)
-        table_view_canvas_splitter.addWidget(self.canvas)
+        self.table_view_canvas_splitter.addWidget(self.table_view)
+        self.table_view_canvas_splitter.addWidget(self.canvas)
 
         # endregion
         """---Splitter Contents---"""
 
         # Add to main_content_layout
-        main_content_layout.addWidget(table_view_canvas_splitter)
+        main_content_layout.addWidget(self.table_view_canvas_splitter)
 
         # endregion
         """---Vertical Splitter---"""
@@ -506,7 +506,7 @@ class MainWindow(QMainWindow):
             self.table_view_canvas_splitter.setSizes([top_height, bottom_height])
             self._initial_sizes_set = True
         # Set focus to the main window to deselect any input widgets
-        #self.setFocus()
+        self.setFocus()
 
 
 def main():

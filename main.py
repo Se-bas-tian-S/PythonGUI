@@ -18,7 +18,6 @@ from typing import cast
 
 """
 TODO:
--   Plot doesn't resize correctly, fix the init size of the splitter
 -   Add the ability to filter for trade direction
 -   Future implementations: Add a statisical overview tab to display some key figures and calculations of the strategy,
     like averages (Position size, return, swap, duration of the position, price difference in %, some important figures 

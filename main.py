@@ -220,7 +220,7 @@ class MainWindow(QMainWindow):
 
         # Init Objects
         table_view_canvas_splitter = QSplitter(Qt.Vertical)
-        table_view_canvas_splitter.setSizes([100, 200])
+        table_view_canvas_splitter.setSizes([400, 200])
 
         """---Splitter Contents---"""
         # region Splitter Contents
@@ -281,6 +281,7 @@ class MainWindow(QMainWindow):
         self.proxy_model = CustomProxyModel()
         self.proxy_model.setSourceModel(self.model)
         self.table_view.setModel(self.proxy_model)
+        self._initial_sizes_set = False
         # Connections
         self.model.data_updated.connect(self.plot_data)
         # endregion
@@ -493,11 +494,19 @@ class MainWindow(QMainWindow):
                 self.canvas.draw_idle()
 
     def showEvent(self, event):
-        """Called automatically when the window is shown."""
-        # Set focus to the main window to deselect any input widgets
-        self.setFocus()
         # Call the parent class's implementation to ensure default behavior
         super().showEvent(event)
+        # Called automatically when the window is shown
+        # Calculate 2:1 ratio for splitter
+        if not self._initial_sizes_set:
+            total_height = self.table_view_canvas_splitter.height()
+            # Calculate the desired heights for a 2:1 ratio
+            top_height = int(total_height * (2 / 3))
+            bottom_height = int(total_height * (1 / 3))
+            self.table_view_canvas_splitter.setSizes([top_height, bottom_height])
+            self._initial_sizes_set = True
+        # Set focus to the main window to deselect any input widgets
+        #self.setFocus()
 
 
 def main():

@@ -12,7 +12,7 @@ from matplotlib.backend_bases import MouseEvent, Event
 from matplotlib.lines import Line2D
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from matplotlib.dates import num2date
+from matplotlib.dates import num2date, date2num
 from typing import cast
 
 
@@ -277,6 +277,7 @@ class MainWindow(QMainWindow):
         self.x_axis_mode = "consecutive"
         self.plot_mode = "Individual"
         self.proxy_model = CustomProxyModel()
+        self.proxy_model.setSortRole(Qt.EditRole)
         self.proxy_model.setSourceModel(self.model)
         self.table_view.setModel(self.proxy_model)
         # Connections
@@ -285,7 +286,7 @@ class MainWindow(QMainWindow):
         """---Internal Data---"""
 
         # Resize Splitter
-        table_view_canvas_splitter.setSizes([100, 50])
+        table_view_canvas_splitter.setSizes([100, 80])
 
     def update_x_axis_mode(self):
         self.x_axis_mode = self.x_axis_mode_combo.currentText()
@@ -315,7 +316,6 @@ class MainWindow(QMainWindow):
                 self.table_view.resizeColumnsToContents()
                 if last_col_index > 0:
                     header.setSectionResizeMode(last_col_index, QHeaderView.Stretch)
-                self.proxy_model.setFilterKeyColumn(len(self.df.columns))
             except Exception as e:
                 print(f"Failed to load CSV: {e}")
 
@@ -335,7 +335,6 @@ class MainWindow(QMainWindow):
             self.proxy_model.set_direction_filter("Long")
         else:
             self.proxy_model.set_direction_filter("")
-
 
         self.plot_data()
 
@@ -431,24 +430,29 @@ class MainWindow(QMainWindow):
         # Updates the annotation text and position when hovering over a data point.
         idx = ind["ind"][0]
         x, y = self.line.get_data()
-        self.annot.xy = (x[idx], y[idx])
 
-        x_val = x[idx]
+        raw_x_val = x[idx]
         y_val = y[idx]
+
+        numeric_x_val = raw_x_val
+        if isinstance(raw_x_val, (np.datetime64, pd.Timestamp)):
+            numeric_x_val = date2num(raw_x_val)
+
+        self.annot.xy = (numeric_x_val, y_val)
 
         if self.x_axis_mode == "consecutive":
             x_label = "Trade Number"
-            text = f"{x_label}: {int(x_val)}\nValue: {y_val:.2f}"
+            text = f"{x_label}: {int(raw_x_val)}\nValue: {y_val:.2f}"
         elif self.x_axis_mode in ["opening time", "closing time"]:
             if self.x_axis_mode == "opening time":
                 x_label = "Opening Time"
             else:  # closing time
                 x_label = "Closing Time"
-            date_str = num2date(x_val).strftime('%Y-%m-%d %H:%M:%S')
+            date_str = num2date(numeric_x_val).strftime('%Y-%m-%d %H:%M:%S')
             text = f"{x_label}: {date_str}\nValue: {y_val:.2f}"
         else:
             # Fallback, should not be reached
-            text = f"X: {x_val}\nValue: {y_val:.2f}"
+            text = f"X: {raw_x_val}\nValue: {y_val:.2f}"
         self.annot.set_text(text)
         self.annot.get_bbox_patch().set_alpha(0.4)
 
@@ -472,8 +476,12 @@ class MainWindow(QMainWindow):
         if len(x_data) == 0:
             return
 
+        x_data_numeric = x_data
+        if isinstance(x_data[0], (np.datetime64, pd.Timestamp)):
+            x_data_numeric = date2num(x_data)
+
         # Transform data coords to display coords
-        xy_pixels = self.ax.transData.transform(np.c_[x_data, y_data])
+        xy_pixels = self.ax.transData.transform(np.c_[x_data_numeric, y_data])
 
         # Calculate squared distance from mouse to all points in pixel space
         distances_sq = np.sum((xy_pixels - (event.x, event.y)) ** 2, axis=1)

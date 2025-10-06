@@ -36,13 +36,14 @@ class CustomProxyModel(QSortFilterProxyModel):
         # Comment filter logic
         comment_accepted = True
         if self._comment_filter_enabled and self._comment_filter:
-            comment_accepted = False
-            for i in range(self.sourceModel().columnCount()):
-                index = self.sourceModel().index(source_row, i, source_parent)
-                if index.isValid():
-                    cell_data = str(self.sourceModel().data(index, Qt.DisplayRole))
-                    if self._comment_filter.lower() in cell_data.lower():
-                        comment_accepted = True
-                        break
+            try:
+                comment_accepted = False
+                comment_col_idx = self.sourceModel()._df.columns.get_loc("Comment") + 1
+                source_index = self.sourceModel().index(source_row, comment_col_idx, source_parent)
+                cell_data = self.sourceModel().data(source_index, Qt.DisplayRole)
+                if cell_data is not None and self._comment_filter.lower() in cell_data.lower():
+                    comment_accepted = True
+            except KeyError:
+                comment_accepted = False
 
         return direction_accepted and comment_accepted

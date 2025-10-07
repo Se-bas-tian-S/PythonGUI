@@ -18,14 +18,21 @@ from typing import cast
 
 """
 TODO:
--   Add the ability to filter for trade direction
--   Future implementations: Add a statisical overview tab to display some key figures and calculations of the strategy,
+-   Future implementations: Add a statistical overview tab to display some key figures and calculations of the strategy,
     like averages (Position size, return, swap, duration of the position, price difference in %, some important figures 
     like the MT5 Strategy tester has them to be able to compare)
--   Move Top Bar as a Header to the very top of the Application, including a tab view to switch between different
-    windows, first window current display, second window direct comparison of tables
--   Add a direct comparison between two dataframes, in the graph as well as entries directly in the Table, match either
-    Opening Time roughly or just display in order next to each other with differences
+-   Move Top Bar to the very top of the application
+-   Display the main content widget in a "tab", to be able to load multiple CSVs and switch between them
+-   Add a comparison tab to compare two loaded CSVs row by row and plot both graphs plus a difference graph in the 
+    plotting area, also add view where both frames are shown with each row containing two rows, finding conterparts
+    based on the opening or closing time, displaying single entries without counterpart accordingly, and the difference
+    of each column being displayed and highlighted
+-   Add a statistical overview to that comparison window to display some calculated differences between the CSVs, as
+    for example overall difference, biggest positive/negative profit difference, entries without time counterpart, etc
+-   Add the ability to export comparisons or states (for example to save a state where a lot of trades have been 
+    excluded manually) 
+-   Add an entirely new functionality to be able to save mt5 optimization exports and display them with statistically
+    relevant information and graphs to be able visualize every setting over multiple backtesting periods
 """
 
 

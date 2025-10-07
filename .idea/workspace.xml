@@ -4,13 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fb890397-061d-40d5-80b8-7f431ebd7c09" name="Changes" comment="Cleanup implementation sidebar, fully working version">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/TradeHistory_Export.csv" beforeDir="false" afterPath="$PROJECT_DIR$/TradeHistory_Export.csv" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/customProxyModel.py" beforeDir="false" afterPath="$PROJECT_DIR$/customProxyModel.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pandasDataModel.py" beforeDir="false" afterPath="$PROJECT_DIR$/pandasDataModel.py" afterDir="false" />
-    </list>
+    <list default="true" id="fb890397-061d-40d5-80b8-7f431ebd7c09" name="Changes" comment="Fixed everything, fully working version with List ordering, Check boxes for individual rows, filtering, plot modes &quot;individual&quot;, &quot;cumulative&quot;, swap and commission exclusion, x-axis modes for consecutive, open and close time x-values, and a direction filtering method" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -122,7 +116,15 @@
       <option name="project" value="LOCAL" />
       <updated>1759073603041</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="Fixed everything, fully working version with List ordering, Check boxes for individual rows, filtering, plot modes &quot;individual&quot;, &quot;cumulative&quot;, swap and commission exclusion, x-axis modes for consecutive, open and close time x-values, and a direction filtering method">
+      <option name="closed" value="true" />
+      <created>1759788380444</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1759788380444</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -130,6 +132,7 @@
     <MESSAGE value="Example Calendar implementation" />
     <MESSAGE value="Update 28.09.2025" />
     <MESSAGE value="Cleanup implementation sidebar, fully working version" />
-    <option name="LAST_COMMIT_MESSAGE" value="Cleanup implementation sidebar, fully working version" />
+    <MESSAGE value="Fixed everything, fully working version with List ordering, Check boxes for individual rows, filtering, plot modes &quot;individual&quot;, &quot;cumulative&quot;, swap and commission exclusion, x-axis modes for consecutive, open and close time x-values, and a direction filtering method" />
+    <option name="LAST_COMMIT_MESSAGE" value="Fixed everything, fully working version with List ordering, Check boxes for individual rows, filtering, plot modes &quot;individual&quot;, &quot;cumulative&quot;, swap and commission exclusion, x-axis modes for consecutive, open and close time x-values, and a direction filtering method" />
   </component>
 </project>
